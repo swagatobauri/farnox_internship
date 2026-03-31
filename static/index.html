@@ -5,20 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stock Dashboard</title>
 
-  <!-- Google Fonts -->
+  <!-- Google Fonts import karte hain UI ke liye -->
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Plotly.js -->
+  <!-- Plotly.js chart backend -->
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
-  <!-- React & ReactDOM (via CDN) -->
+  <!-- React aur ReactDOM ko CDN se import kiya taaki local node.js ki zarurat na ho -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   
-  <!-- Babel (to compile JSX in browser) -->
+  <!-- Babel (JSX ko browser me compile karne ke liye) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <script>
@@ -35,21 +35,31 @@
   </script>
 
   <style>
+    /* Chart ka background transparent banane ke liye ek chota fix */
     .js-plotly-plot .plotly .main-svg {
       background: transparent !important;
+    }
+    
+    .animate-fade-in {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 
 <body class="bg-gray-50 font-sans text-gray-800 min-h-screen">
   
-  <!-- ROOT element for React -->
+  <!-- Root block jiske andar React app mount hoga -->
   <div id="root"></div>
 
-  <!-- React Application Logic -->
+  <!-- Main React Frontend Application -->
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
+    // Market cap values ko handle aur readable banane ke liye 
     function formatMarketCap(mc) {
       if (!mc) return "N/A";
       if (mc > 1e12) return (mc / 1e12).toFixed(2) + "T";
@@ -58,8 +68,10 @@
       return mc;
     }
 
+    // Dashboard UI Component 
     function StockDashboard() {
-      // Setup state using React hooks
+      
+      // React states yahan define karte hain user input aur variables ke liye
       const [tickerInput, setTickerInput] = useState("");
       const [period, setPeriod] = useState("1mo");
       const [popularStocks, setPopularStocks] = useState([]);
@@ -67,9 +79,10 @@
       const [error, setError] = useState(null);
       const [stockData, setStockData] = useState(null);
       
+      // Plotly chart container ka reference 
       const chartRef = useRef(null);
 
-      // On Mount: Load popular stocks
+      // Jab page pratham baar load hota hai popular stocks fetch karte hain
       useEffect(() => {
         fetch("/popular-stocks")
           .then(res => res.json())
@@ -77,15 +90,15 @@
             const all = [...data.indian_stocks, ...data.us_stocks];
             setPopularStocks(all);
           })
-          .catch(err => console.error("Failed to load popular stocks", err));
+          .catch(err => console.error("Popular stocks laane me issue hua:", err));
       }, []);
 
-      // When stockData changes: Render Plotly chart
+      // Jab bhi naya stockdata chart me aata hai toh usko Plotly pe update karein
       useEffect(() => {
         if (stockData && stockData.chart && chartRef.current) {
           const chartData = JSON.parse(stockData.chart);
 
-          // Convert timestamps to string dates
+          // Plotly ko samajh aane layk date string mein format karna  
           if (chartData.data[0] && chartData.data[0].x) {
             chartData.data[0].x = chartData.data[0].x.map(d => new Date(d).toISOString().split("T")[0]);
           }
@@ -110,11 +123,11 @@
         }
       }, [stockData]);
 
-      // Handle search API call
+      // Stock ko dhoondhne aur backend ko request bhejne ka function
       const handleSearch = async (overrideTicker = null) => {
         const searchTicker = overrideTicker || tickerInput.trim().toUpperCase();
         if (!searchTicker) {
-          alert("Please enter a stock ticker.");
+          alert("Koi stock ka naam ya symbol dijiye");
           return;
         }
 
@@ -132,12 +145,13 @@
             setStockData(data);
           }
         } catch (err) {
-          setError("Could not connect to server.");
+          setError("Server se connect nahi ho pa raha hai.");
         } finally {
           setLoading(false);
         }
       };
 
+      // Input bar ke andar bhi enter daba kar search kiya ja sakta hai
       const handleKeyPress = (e) => {
         if (e.key === "Enter") handleSearch();
       };
@@ -153,14 +167,14 @@
 
           <main className="max-w-4xl mx-auto px-6 py-8 space-y-6">
             
-            {/* Search Row */}
+            {/* Search Input UI */}
             <div className="flex gap-3 items-center">
               <input
                 type="text"
                 value={tickerInput}
                 onChange={(e) => setTickerInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Enter ticker (e.g., TCS.NS, AAPL)"
+                placeholder="Enter ticker (jaise ki, TCS.NS, AAPL)"
                 className="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white outline-none focus:border-gray-500 font-sans"
               />
               <select
@@ -183,7 +197,7 @@
               </button>
             </div>
 
-            {/* Quick Select */}
+            {/* Quick Suggestions Buttons */}
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-widest mb-2 font-medium">Quick Select</p>
               <div className="flex flex-wrap gap-2">
@@ -202,21 +216,21 @@
               </div>
             </div>
 
-            {/* Error Message */}
+            {/* Errors ke liye warning box */}
             {error && (
               <div className="border border-red-200 bg-red-50 text-red-600 text-sm rounded-lg px-4 py-3">
                 {error}
               </div>
             )}
 
-            {/* Loading */}
+            {/* Loading text API fetch ke doran */}
             {loading && (
               <div className="text-center py-16 text-sm text-gray-400">
                 Fetching data...
               </div>
             )}
 
-            {/* Stats Row */}
+            {/* Price aur Company Stats ka row */}
             {stockData && (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 animate-fade-in">
                 <div className="bg-white border border-gray-200 rounded-xl px-5 py-4">
@@ -242,7 +256,7 @@
               </div>
             )}
 
-            {/* Chart Container */}
+            {/* Plotly Chart ka container */}
             <div className="bg-white border border-gray-200 rounded-xl animate-fade-in min-h-[400px]">
               {!stockData && !loading && (
                 <div className="flex flex-col items-center justify-center py-32 text-gray-300">
@@ -253,29 +267,14 @@
             </div>
 
           </main>
-
-          <footer className="max-w-4xl mx-auto px-6 py-6 border-t border-gray-100 mt-4">
-            <p className="text-xs text-gray-300">Data via Yahoo Finance. Written in React. For educational use only.</p>
-          </footer>
         </div>
       );
     }
 
-    // Initialize React on the #root div
+    // React code ko page pe render karein
     const root = ReactDOM.createRoot(document.getElementById("root"));
     root.render(<StockDashboard />);
   </script>
-
-  <style>
-    /* Add a simple fade-in animation for react elements */
-    .animate-fade-in {
-      animation: fadeIn 0.3s ease-in-out;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
 
 </body>
 </html>

@@ -10,36 +10,41 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
+# FastAPI application ka main instance banate hain
 app = FastAPI(
     title="Stock Dashboard API",
     description="API for stock market data",
     version="1.0.0"
 )
 
+# HTML/CSS/JS files ko frontend par serve karne ke liye route set kiya
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 DATA_FOLDER = "data"
 if not os.path.exists(DATA_FOLDER):
     os.makedirs(DATA_FOLDER)
-    print(f"Created '{DATA_FOLDER}' folder.")
+    print("Created data folder.")
 
+# Default home page load karne ke liye route
 @app.get("/", response_class=HTMLResponse)
 def home():
     with open("static/index.html", "r") as file:
         html_content = file.read()
     return HTMLResponse(content=html_content)
 
+# Kisi specific company ka stock data fetch karne wala route
 @app.get("/stock/{ticker}")
 def get_stock_data(ticker: str, period: str = "1mo"):
     try:
         ticker = ticker.upper()
+        # Yahoo Finance se data layein
         stock = yf.Ticker(ticker)
         history = stock.history(period=period)
 
         if history.empty:
             return JSONResponse(
                 status_code=404,
-                content={"error": f"Data for '{ticker}' not found."}
+                content={"error": "Data not found for " + ticker}
             )
 
         info = stock.info
@@ -50,8 +55,10 @@ def get_stock_data(ticker: str, period: str = "1mo"):
         sector = info.get("sector", "N/A")
         currency = info.get("currency", "USD")
 
+        # Dates ko string format mein fix karte hain Plotly chart ke liye
         date_strs = history.index.strftime("%Y-%m-%d").tolist()
 
+        # Ek naya Candlestick chart banate hain
         fig = go.Figure(
             data=[
                 go.Candlestick(
@@ -68,15 +75,16 @@ def get_stock_data(ticker: str, period: str = "1mo"):
         )
 
         fig.update_layout(
-            title=f"{company_name} ({ticker}) — Stock Price",
+            title=company_name + " (" + ticker + ") — Stock Price",
             xaxis_title="Date",
-            yaxis_title=f"Price ({currency})",
+            yaxis_title="Price (" + currency + ")",
             xaxis_type="date",
             xaxis_rangeslider_visible=False,
         )
 
         chart_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
+        # Downloaded data ko backup ke zarurat ke hisab se CSV mein save karein
         file_path = os.path.join(DATA_FOLDER, f"{ticker}_data.csv")
         history.to_csv(file_path)
 
@@ -96,9 +104,10 @@ def get_stock_data(ticker: str, period: str = "1mo"):
     except Exception as e:
         return JSONResponse(
             status_code=500,
-            content={"error": f"An error occurred: {str(e)}"}
+            content={"error": "An error occurred: " + str(e)}
         )
 
+# Multiple stocks ek saath compare karne ka route (optional function)
 @app.get("/compare")
 def compare_stocks(tickers: str = "AAPL,GOOGL,MSFT", period: str = "1mo"):
     try:
@@ -110,6 +119,7 @@ def compare_stocks(tickers: str = "AAPL,GOOGL,MSFT", period: str = "1mo"):
             history = stock.history(period=period)
 
             if not history.empty:
+                # Prices ko compare karne ke liye 100 pe normalize karte hain
                 normalized = (history["Close"] / history["Close"].iloc[0]) * 100
 
                 fig.add_trace(
@@ -143,9 +153,10 @@ def compare_stocks(tickers: str = "AAPL,GOOGL,MSFT", period: str = "1mo"):
     except Exception as e:
         return JSONResponse(
             status_code=500,
-            content={"error": f"An error occurred: {str(e)}"}
+            content={"error": "An error occurred: " + str(e)}
         )
 
+# Quick suggestion list UI ko populate karne ke liye
 @app.get("/popular-stocks")
 def popular_stocks():
     return {
