@@ -1,0 +1,13 @@
+# Virtual environment — ye folder push nahi karna
+venv/
+
+# Python cache files — automatically bante hain, zaroorat nahi
+__pycache__/
+*.pyc
+*.pyo
+
+# Mac system file — hidden hota hai, zaroorat nahi
+.DS_Store
+
+# Environment variables file — agar future mein banao
+.env
